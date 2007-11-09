@@ -1,0 +1,31 @@
+<html>
+<head>
+	<title>Cover Art</title>
+
+	<style type="text/css">
+		#albums {list-style:none; padding:0px; margin:0px;}
+		#albums li {margin-bottom:8px;}
+		#albums li a {color:red;}
+		#albums li.saved a {color:black;}
+	</style>
+</head>
+<body>
+
+<h3>Album List</h3>
+
+<ul id="albums">
+	<? for (key, record) in albums: ?>
+		<? if "url" in record and record["url"]: ?>
+			<li class="saved" id="<?= urllib.quote_plus(key) ?>">
+		<? else: ?>
+			<li id="<?= urllib.quote_plus(key) ?>">
+		<? end ?>
+			<a target="right" href="/view?key=<?= urllib.quote_plus(key) ?>">
+				<?= record["artist"] ?>: <?= record["album"] ?>
+			</a>
+		</li>
+	<? end ?>
+</ul>
+
+</body>
+</html>

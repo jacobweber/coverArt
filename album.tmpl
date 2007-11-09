@@ -1,0 +1,64 @@
+<html>
+<head>
+	<title>Cover Art</title>
+
+	<style type="text/css">
+		#covers {list-style:none; padding:0px; margin:0px;}
+		#covers li {margin-bottom:8px;}
+		#covers a img {border:0px;}
+		img.selected {border:3px solid red; padding:2px;}
+	</style>
+
+	<? if selection: ?>
+		<script language="JavaScript">
+			var key = "<?= urllib.quote_plus(key) ?>";
+			if (parent && parent.left && parent.left.document.getElementById(key)) {
+				<? if selection and "url" in selection and selection["url"]: ?>
+					parent.left.document.getElementById(key).className = "saved"
+				<? else: ?>
+					parent.left.document.getElementById(key).className = ""
+				<? end ?>
+			}
+		</script>
+	<? end ?>
+</head>
+<body>
+
+<? if selection: ?>
+	<h3><?= selection["artist"] ?>: <?= selection["album"] ?></h3>
+
+	<p><?= response ?></p>
+
+	<? if "url" in selection and selection["url"]: ?>
+		Selected cover:<br />
+		<img src="<?= selection["url"] ?>" class="selected" />
+	<? end ?>
+
+	<form action="/save" method="post">
+		<input type="hidden" name="key" value="<?= urllib.quote_plus(key) ?>" />
+		<? if covers: ?>
+			Select a cover:<br />
+			<ul id="covers">
+				<? for cover in covers: ?>
+					<li>
+						<a href="/save?key=<?= urllib.quote_plus(key) ?>&url=<?= urllib.quote_plus(cover["url"]) ?>">
+						<img src="<?= cover["url"] ?>" /></a>
+					</li>
+				<? end ?>
+			</ul>
+		<? end ?>
+
+		Search for a cover:
+		<input type="text" name="searchTerms" /><br />
+
+		Enter a URL or file path:
+		<input type="text" name="url" /><br />
+
+		<input type="submit" name="submit" value="Submit" /><br />
+		<input type="submit" name="clear" value="Clear Selection" />
+<? else: ?>
+	<p><?= response ?></p>
+<? end ?>
+
+</body>
+</html>

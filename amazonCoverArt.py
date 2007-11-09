@@ -78,6 +78,7 @@ class AmazonCoverArt(object):
 
 def main():
 	aca = AmazonCoverArt()
+	# sample search
 	covers = aca.search('Elvis Costello', 'My Aim Is True')
 	for cover in covers:
 		print cover["url"]

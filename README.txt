@@ -2,7 +2,7 @@ Cover Art Server 1.2
 by Jacob Weber
 with contributions by Simon Long
 
-Works with iTunes 7.5, on Mac OS 10.5 or Windows XP. For Windows XP you'll need Cygwin installed. Also compatible with other operating systems, with some changes.
+Works with iTunes 7.7, on Mac OS 10.5 or Windows XP. For Windows XP you'll need Cygwin installed. Also compatible with other operating systems, with some changes.
 
 You must have Python installed to run this script. Version 2.5.1 is recommended, which comes with Mac OS 10.5. For other systems, you can download it from http://www.python.org/download/. If you do, you'll need to change the first line of the file coverArtServer.py to point to the python binary. For example:
 #!/Library/Frameworks/Python.framework/Versions/Current/bin/python

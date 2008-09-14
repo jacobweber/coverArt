@@ -3,6 +3,10 @@
 import sys, os, urllib, string, xml.dom.minidom, traceback
 
 class AmazonCoverArt(object):
+	""" Gets covers from Amazon's web service. The licence file must contain
+	an Access Key ID.
+	"""
+
 	LICENSE_FILE = "amazonLicense.txt"
 	BASE_URLS = {
 		"US":"http://webservices.amazon.com/onca/xml?Service=AWSECommerceService",

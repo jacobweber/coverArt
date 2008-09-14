@@ -1,12 +1,18 @@
 import os, pickle
 
 class AlbumDatabase(object):
+	""" Maintains a flat-file database of album covers. """
+
 	FILE_NAME = "albumDatabase.pkl"
 
 	data = None
 
 	def __init__(self):
 		self.load()
+
+	def deleteAllRecords(self):
+		self.data = {}
+		self.save()
 
 	def load(self):
 		if os.access(self.FILE_NAME, os.R_OK):

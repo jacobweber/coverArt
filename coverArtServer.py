@@ -1,112 +1,66 @@
 #!/usr/bin/python
 
-import BaseHTTPServer, urllib, cgi, urlparse, pprint, albumDatabase, amazonCoverArt, stpy, md5
+import threading, sys, BaseHTTPServer, select, socket, SocketServer, urllib, cgi, urlparse, pprint, albumDatabase, amazonCoverArt, stpy, md5
 
 albumDB = None
 
-class CoverArtServer(BaseHTTPServer.BaseHTTPRequestHandler):
-	SERVER_PORT = 80
+class CoverArtWebUIHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+	""" Request handler for the Cover Art web interface """
+	SERVER_HOST = "localhost"
+	SERVER_PORT = 9999
 
 	VALID_TYPES = ('image/jpeg','image/gif')
 
-	INIT_SESSION_XML = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-	<plist version="1.0">
-		<dict>
-			<key>signature</key>
-			<data>HYbVgQRRFfyQdneOuPNOBBJMYrqQ6aYMiMM7OVBejcU+RFm4Fx3k+R/fjxt9NwLW+M68HrVicPkR3i68nyCSny6QKiwoj+NZG0o2RIjEgCBYdijbn98VGWCRmDspqsSAyM+C4yurUp1OawaTlCvL7cHT4swQ2kQVhMxD6RG1qZo=</data>
-			<key>certs</key>
-			<array>
-<data>MIIDOTCCAiGgAwIBAgIBATANBgkqhkiG9w0BAQQFADB+MRMwEQYDVQQKEwpBcHBsZSBJbmMuMRUwEwYDVQQLEwxpVHVuZXMgU3RvcmUxGjAYBgNVBAMTEWlUdW5lcyBTdG9yZSBSb290MQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTESMBAGA1UEBxMJQ3VwZXJ0aW5vMB4XDTA3MTAwOTIxNTkxNFoXDTA4MTEwNzIxNTkxNFowgYExEzARBgNVBAoTCkFwcGxlIEluYy4xFTATBgNVBAsTDGlUdW5lcyBTdG9yZTEdMBsGA1UEAxMUaVR1bmVzIFN0b3JlIFVSTCBCYWcxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRIwEAYDVQQHEwlDdXBlcnRpbm8wgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBAOLMu/eV+eSLVEGtn536FkXAsi/vtpXdHpTNS9muEVlvlkubKXdPDd5jV5WnQpAKY4GZrBn8azP9UKBd85nhIb5nqHQHCmH5DpBK9GZPFpoIdXguJSre8pZwQaYEXQGtTt3nXvk9k8OHs5W/9xFLuD7fpkKSIl+0KLPFULdyEtlvAgMBAAGjQjBAMB0GA1UdDgQWBBTd4gDjfN3LFr3b5G8dvUTpC56JZTAfBgNVHSMEGDAWgBSw2uF/qItKaoFdDKGEVkYeau/lzzANBgkqhkiG9w0BAQQFAAOCAQEAIDpkK1CqTNyl7SEZWvUTRYPdZzn9Y4QjnbSQ6hFkF/PClJkXn3TzMW3ojnxNLphKZxOY53s6D/Hf1B5UX2bJDAnfQ/W8d10SPubGJ1FnUZK8KaKeOzAgks5ob9dnOUe4CZKhZ5FyggIJfgd38Q0s8WF474j5OA/5XRPczgjt+OiIfzEVX5Xqpm1TU7T4013eHze5umqAsd9fFxUXdTC+bl9xdj5VOmqUUfOivoiqiBK2/6XAaDIFF/PEnxVou+BpqkdsyTZz/HiQApve+7NONqS58ciq3Ov+wivpVJKxMyFgcXFWb/d2ZTc04i+fGf0OA4QmkSRcAZOxQkv0oggtTw==</data>
-			</array>
-			<key>bag</key>
-			<data>PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+CjwhRE9DVFlQRSBwbGlzdCBQVUJMSUMgIi0vL0FwcGxlIENvbXB1dGVyLy9EVEQgUExJU1QgMS4wLy9FTiIgImh0dHA6Ly93d3cuYXBwbGUuY29tL0RURHMvUHJvcGVydHlMaXN0LTEuMC5kdGQiPiAKCiAgPHBsaXN0IHZlcnNpb249IjEuMCI+CiAgICA8ZGljdD4KICAgICAgCiAgICAgIAogICAgICAKICAgICAgCiAgICAgICAgPGtleT50aW1lc3RhbXA8L2tleT48ZGF0ZT4yMDA4LTA3LTEwVDA5OjM5OjExWjwvZGF0ZT4KICAgIDxrZXk+c3RvcmVGcm9udDwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL3N0b3JlRnJvbnQ8L3N0cmluZz4KICAgIDxrZXk+bmV3VXNlclN0b3JlRnJvbnQ8L2tleT48c3RyaW5nPmh0dHA6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpTdG9yZS53b2Evd2EvZmlyc3RMYXVuY2g8L3N0cmluZz4KICAgIDxrZXk+bmV3SVBvZFVzZXJTdG9yZUZyb250PC9rZXk+PHN0cmluZz5odHRwOi8vYXgucGhvYm9zLmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0L1dlYk9iamVjdHMvTVpTdG9yZS53b2Evd2EvbmV3SVBvZFVzZXI/bmV3SVBvZFVzZXI9dHJ1ZTwvc3RyaW5nPgogICAgPGtleT5uZXdQaG9uZVVzZXI8L2tleT48c3RyaW5nPmh0dHA6Ly9heC5waG9ib3MuYXBwbGUuY29tLmVkZ2VzdWl0ZS5uZXQvV2ViT2JqZWN0cy9NWlN0b3JlLndvYS93YS9waG9uZUxhbmRpbmdQYWdlPC9zdHJpbmc+CiAgICA8a2V5Pm5ld1RvdWNoVXNlcjwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS90b3VjaExhbmRpbmdQYWdlP2lzRGV2aWNlU2VsZWN0ZWQ9dHJ1ZTwvc3RyaW5nPiAgICAgICAgICAgICAgICAgIAogICAgPGtleT5zZWFyY2g8L2tleT48c3RyaW5nPmh0dHA6Ly9heC5waG9ib3MuYXBwbGUuY29tLmVkZ2VzdWl0ZS5uZXQvV2ViT2JqZWN0cy9NWlNlYXJjaC53b2Evd2Evc2VhcmNoPC9zdHJpbmc+CiAgICA8a2V5PmFkdmFuY2VkU2VhcmNoPC9rZXk+PHN0cmluZz5odHRwOi8vYXgucGhvYm9zLmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0L1dlYk9iamVjdHMvTVpTZWFyY2gud29hL3dhL2FkdmFuY2VkU2VhcmNoPC9zdHJpbmc+CiAgICA8a2V5PnNlYXJjaEhpbnRzPC9rZXk+PHN0cmluZz5odHRwOi8vYXgucGhvYm9zLmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0L1dlYk9iamVjdHMvTVpTZWFyY2hIaW50cy53b2Evd2EvaGludHM8L3N0cmluZz4KICAgIDxrZXk+cGFyZW50YWxBZHZpc29yeTwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL3BhcmVudGFsQWR2aXNvcnk8L3N0cmluZz4KICAgIDxrZXk+YnJvd3NlPC9rZXk+PHN0cmluZz5odHRwOi8vYXgucGhvYm9zLmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0L1dlYk9iamVjdHMvTVpTdG9yZS53b2Evd2EvYnJvd3NlPC9zdHJpbmc+CiAgICA8a2V5PnZpZXdBbGJ1bTwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL3ZpZXdBbGJ1bTwvc3RyaW5nPgogICAgPGtleT52aWV3QXJ0aXN0PC9rZXk+PHN0cmluZz5odHRwOi8vYXgucGhvYm9zLmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0L1dlYk9iamVjdHMvTVpTdG9yZS53b2Evd2Evdmlld0FydGlzdDwvc3RyaW5nPgogICAgPGtleT52aWV3Q29tcG9zZXI8L2tleT48c3RyaW5nPmh0dHA6Ly9heC5waG9ib3MuYXBwbGUuY29tLmVkZ2VzdWl0ZS5uZXQvV2ViT2JqZWN0cy9NWlN0b3JlLndvYS93YS92aWV3Q29tcG9zZXI8L3N0cmluZz4KICAgIDxrZXk+dmlld0dlbnJlPC9rZXk+PHN0cmluZz5odHRwOi8vYXgucGhvYm9zLmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0L1dlYk9iamVjdHMvTVpTdG9yZS53b2Evd2Evdmlld0dlbnJlPC9zdHJpbmc+CiAgICA8a2V5PnZpZXdQb2RjYXN0PC9rZXk+PHN0cmluZz5odHRwOi8vYXgucGhvYm9zLmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0L1dlYk9iamVjdHMvTVpTdG9yZS53b2Evd2Evdmlld1BvZGNhc3Q8L3N0cmluZz4KICAgIDxrZXk+dmlld1B1Ymxpc2hlZFBsYXlsaXN0PC9rZXk+PHN0cmluZz5odHRwOi8vYXgucGhvYm9zLmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0L1dlYk9iamVjdHMvTVpTdG9yZS53b2Evd2Evdmlld1B1Ymxpc2hlZFBsYXlsaXN0PC9zdHJpbmc+CiAgICA8a2V5PnZpZXdWaWRlbzwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL3ZpZXdWaWRlbzwvc3RyaW5nPgogICAgPGtleT5wb2RjYXN0czwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL3ZpZXdQb2RjYXN0RGlyZWN0b3J5PC9zdHJpbmc+CiAgICA8a2V5PmV4dGVybmFsVVJMU2VhcmNoS2V5PC9rZXk+PHN0cmluZz5heC5waG9ib3MuYXBwbGUuY29tLmVkZ2VzdWl0ZS5uZXQ8L3N0cmluZz4KICAgIDxrZXk+ZXh0ZXJuYWxVUkxSZXBsYWNlS2V5PC9rZXk+PHN0cmluZz5waG9ib3MuYXBwbGUuY29tPC9zdHJpbmc+CgoKICAgIAogICAgPGtleT5zb25nTWV0YURhdGE8L2tleT48c3RyaW5nPmh0dHA6Ly9heC5waG9ib3MuYXBwbGUuY29tLmVkZ2VzdWl0ZS5uZXQvV2ViT2JqZWN0cy9NWlN0b3JlLndvYS93YS9zb25nTWV0YURhdGE8L3N0cmluZz4KICAgIDxrZXk+c2VsZWN0ZWRJdGVtc1BhZ2U8L2tleT48c3RyaW5nPmh0dHA6Ly9heC5waG9ib3MuYXBwbGUuY29tLmVkZ2VzdWl0ZS5uZXQvV2ViT2JqZWN0cy9NWlN0b3JlLndvYS93YS9zZWxlY3RlZEl0ZW1zUGFnZTwvc3RyaW5nPgogICAgICAgICAgICAKICAgIAoKICAgIAoKICAgIDxrZXk+bWluaS1zdG9yZTwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL21pbmlzdG9yZVYyPC9zdHJpbmc+CiAgICA8a2V5Pm1pbmktc3RvcmUtZmllbGRzPC9rZXk+PHN0cmluZz5hLGtpbmQscDwvc3RyaW5nPgogICAgPGtleT5taW5pLXN0b3JlLW1hdGNoPC9rZXk+PHN0cmluZz5odHRwOi8vYXgucGhvYm9zLmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0L1dlYk9iamVjdHMvTVpTdG9yZVNlcnZpY2VzLndvYS93YS9taW5pc3RvcmVNYXRjaFYyPC9zdHJpbmc+CiAgICA8a2V5Pm1pbmktc3RvcmUtbWF0Y2gtZmllbGRzPC9rZXk+PHN0cmluZz5hbixnbixraW5kLHBuPC9zdHJpbmc+CiAgICA8a2V5Pm1pbmktc3RvcmUtd2VsY29tZTwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL21pbmlzdG9yZVdlbGNvbWU/d2l0aENsaWVudE9wdEluPTE8L3N0cmluZz4KCiAgICA8a2V5Pm1heFB1Ymxpc2hlZFBsYXlsaXN0SXRlbXM8L2tleT48aW50ZWdlcj4xMDA8L2ludGVnZXI+CgogICAgCiAgICA8a2V5PmF2YWlsYWJsZS1yaW5ndG9uZXM8L2tleT48c3RyaW5nPmh0dHA6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpQZXJzb25hbGl6ZXIud29hL3dhL2F2YWlsYWJsZVJpbmd0b25lczwvc3RyaW5nPgoKICAgIDxrZXk+YWJvdXQtcmluZ3RvbmVzPC9rZXk+PHN0cmluZz5odHRwOi8vYXgucGhvYm9zLmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0L1dlYk9iamVjdHMvTVpTdG9yZS53b2Evd2EvUmluZ3RvbmVMZWFybk1vcmVQYWdlPC9zdHJpbmc+CgogICAgCiAgICAKCiAgICA8a2V5PmNvdmVyLWFydDwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmVTZXJ2aWNlcy53b2Evd2EvY292ZXJBcnRNYXRjaDwvc3RyaW5nPgogICAgPGtleT5jb3Zlci1hcnQtZmllbGRzPC9rZXk+PHN0cmluZz5hLHA8L3N0cmluZz4KICAgIDxrZXk+Y292ZXItYXJ0LWNkLWZpZWxkczwva2V5PjxzdHJpbmc+Y2RkYjwvc3RyaW5nPgogICAgPGtleT5jb3Zlci1hcnQtbWF0Y2g8L2tleT48c3RyaW5nPmh0dHA6Ly9heC5waG9ib3MuYXBwbGUuY29tLmVkZ2VzdWl0ZS5uZXQvV2ViT2JqZWN0cy9NWlN0b3JlU2VydmljZXMud29hL3dhL2NvdmVyQXJ0TWF0Y2g8L3N0cmluZz4KICAgIDxrZXk+Y292ZXItYXJ0LW1hdGNoLWZpZWxkczwva2V5PjxzdHJpbmc+Y2RkYixhbixwbjwvc3RyaW5nPgogICAgPGtleT5jb3Zlci1hcnQtdXNlcjwva2V5PjxzdHJpbmc+aHR0cDovL3Bob2Jvcy5hcHBsZS5jb20vV2ViT2JqZWN0cy9NWlBlcnNvbmFsaXplci53b2Evd2EvY292ZXJBcnRVc2VyPC9zdHJpbmc+CgogICAgPGtleT5tYXRjaFVSTHM8L2tleT48YXJyYXk+PHN0cmluZz5odHRwOi8vcGhvYm9zLmFwcGxlLmNvbS9XZWJPYmplY3RzLzwvc3RyaW5nPjwvYXJyYXk+CgogICAgCiAgICA8a2V5PmxpYnJhcnktbGluazwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmVTZXJ2aWNlcy53b2Evd2EvbGlicmFyeUxpbms8L3N0cmluZz4KICAgIAogICAgPGtleT5saWJyYXJ5LWxpbmstZmllbGRzLWxpc3Q8L2tleT4KICAgIDxhcnJheT4KICAgICAgPHN0cmluZz5hbixjbixnbixraW5kLG4scG48L3N0cmluZz4KICAgIDwvYXJyYXk+CiAgICAKICAgIDxrZXk+bGlicmFyeUxpbms8L2tleT48c3RyaW5nPmh0dHA6Ly9heC5waG9ib3MuYXBwbGUuY29tLmVkZ2VzdWl0ZS5uZXQvV2ViT2JqZWN0cy9NWlN0b3JlU2VydmljZXMud29hL3dhL2xpYnJhcnlMaW5rPC9zdHJpbmc+CgogICAgPGtleT5tYXhDb21wdXRlcnM8L2tleT48c3RyaW5nPjU8L3N0cmluZz4KICAgIAogICAgPGtleT50cnVzdGVkRG9tYWluczwva2V5PgogICAgPGFycmF5PgogICAgICA8c3RyaW5nPi5hcHBsZS5jb208L3N0cmluZz4KICAgICAgPHN0cmluZz4ubWUuY29tPC9zdHJpbmc+CiAgICAgIDxzdHJpbmc+LmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0PC9zdHJpbmc+CiAgICAgIDxzdHJpbmc+c3VwcG9ydC5tYWMuY29tPC9zdHJpbmc+CiAgICAgIDxzdHJpbmc+Lml0dW5lcy5jb208L3N0cmluZz4KICAgICAgPHN0cmluZz5pdHVuZXMuY29tPC9zdHJpbmc+CiAgICA8L2FycmF5PgoKICAgIDxrZXk+cGx1cy1pbmZvPC9rZXk+PHN0cmluZz5odHRwOi8vYXgucGhvYm9zLmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0L1dlYk9iamVjdHMvTVpTdG9yZS53b2Evd2EvaVR1bmVzUGx1c0xlYXJuTW9yZVBhZ2U8L3N0cmluZz4KCiAgICA8a2V5PmFwcGxldHYtcmVsYXRlZC1jb250ZW50LXVybDwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL3JlbGF0ZWRJdGVtc1NoZWxmPC9zdHJpbmc+CiAgICA8a2V5PmFwcGxldHYteW91dHViZS1hdXRoLXVybDwva2V5PjxzdHJpbmc+aHR0cHM6Ly93d3cuZ29vZ2xlLmNvbS88L3N0cmluZz4KICAgIDxrZXk+YXBwbGV0di15b3V0dWJlLXVybDwva2V5PjxzdHJpbmc+aHR0cDovL2dkYXRhLnlvdXR1YmUuY29tLzwvc3RyaW5nPgogICAgPGtleT5pdHVuZXMtcHJlc2VudHMtZGlyZWN0b3J5LXVybDwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmVTZXJ2aWNlcy53b2Evd3MvUlNTL2RpcmVjdG9yeTwvc3RyaW5nPgogICAgPGtleT5HaG9zdHJpZGVyPC9rZXk+PHN0cmluZz5ZRVM8L3N0cmluZz4KCiAgICA8a2V5PnAyLXRvcC10ZW48L2tleT48c3RyaW5nPmh0dHA6Ly9heC5waG9ib3MuYXBwbGUuY29tLmVkZ2VzdWl0ZS5uZXQvV2ViT2JqZWN0cy9NWlN0b3JlLndvYS93YS92aWV3VG9wVGVuc0xpc3Q8L3N0cmluZz4KICAgIDxrZXk+cDItc2VydmljZS10ZXJtcy11cmw8L2tleT48c3RyaW5nPmh0dHA6Ly93d3cuYXBwbGUuY29tL2xlZ2FsL2l0dW5lcy93dy88L3N0cmluZz4KICAgIAogIDxrZXk+bW9iaWxlLWNvbm5lY3Rpb24tdHlwZS1hbGxvd3M8L2tleT4KICA8ZGljdD4KICAgIDxrZXk+Mkc8L2tleT4KICAgIDxkaWN0PgogICAgICA8a2V5PnAyLXNvZnR3YXJlLXN0b3JlLWF2YWlsYWJsZTwva2V5PjxzdHJpbmc+WUVTPC9zdHJpbmc+CiAgICAgIDxrZXk+c29mdHdhcmUtZG93bmxvYWQtc2l6ZS1saW1pdC1pbi1ieXRlczwva2V5PjxpbnRlZ2VyPjEwNDg1NzYwPC9pbnRlZ2VyPgogICAgPC9kaWN0PgogICAgPGtleT5XaUZpPC9rZXk+CiAgICA8ZGljdD4KICAgICAgPGtleT5wMi1tdXNpYy1zdG9yZS1hdmFpbGFibGU8L2tleT48c3RyaW5nPllFUzwvc3RyaW5nPgogICAgICA8a2V5Pm11c2ljLWRvd25sb2FkLXNpemUtbGltaXQtaW4tYnl0ZXM8L2tleT48aW50ZWdlcj4wPC9pbnRlZ2VyPgogICAgICA8a2V5PnAyLXNvZnR3YXJlLXN0b3JlLWF2YWlsYWJsZTwva2V5PjxzdHJpbmc+WUVTPC9zdHJpbmc+CiAgICAgIDxrZXk+c29mdHdhcmUtZG93bmxvYWQtc2l6ZS1saW1pdC1pbi1ieXRlczwva2V5PjxpbnRlZ2VyPjA8L2ludGVnZXI+CiAgICA8L2RpY3Q+CiAgICA8a2V5PjNHPC9rZXk+CiAgICA8ZGljdD4KICAgICAgPGtleT5wMi1zb2Z0d2FyZS1zdG9yZS1hdmFpbGFibGU8L2tleT48c3RyaW5nPllFUzwvc3RyaW5nPgogICAgICA8a2V5PnNvZnR3YXJlLWRvd25sb2FkLXNpemUtbGltaXQtaW4tYnl0ZXM8L2tleT48aW50ZWdlcj4xMDQ4NTc2MDwvaW50ZWdlcj4KICAgIDwvZGljdD4KICA8L2RpY3Q+CgogICAgPGtleT5wMi1tdXNpYy1zdG9yZS1hdmFpbGFibGU8L2tleT48c3RyaW5nPllFUzwvc3RyaW5nPgogICAgCiAgICAgICAgPGtleT5wMi1zb2Z0d2FyZS1zdG9yZS1hdmFpbGFibGU8L2tleT48c3RyaW5nPllFUzwvc3RyaW5nPgogICAgICAgIDxrZXk+cDItcGFuZGEtc3RvcmVmcm9udDwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL3BhbmRhU3RvcmVGcm9udDwvc3RyaW5nPgogICAgICAgIDxrZXk+cDItcGFuZGEtZ2VucmVzPC9rZXk+PHN0cmluZz5odHRwOi8vYXgucGhvYm9zLmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0L1dlYk9iamVjdHMvTVpTdG9yZS53b2Evd2Evdmlld0ZlYXR1cmVkU29mdHdhcmVDYXRlZ29yaWVzPC9zdHJpbmc+CiAgICAgICAgPGtleT5wMi1wYW5kYS10b3AtZmlmdHk8L2tleT48c3RyaW5nPmh0dHA6Ly9heC5waG9ib3MuYXBwbGUuY29tLmVkZ2VzdWl0ZS5uZXQvV2ViT2JqZWN0cy9NWlN0b3JlLndvYS93YS92aWV3VG9wRmlmdHk/Z2VucmVJZD0zNjwvc3RyaW5nPgogICAgICAgIDxrZXk+cDItcGFuZGEtdXBkYXRlczwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL3ZpZXdQYW5kYVVwZGF0ZXM8L3N0cmluZz4KICAgICAgICA8a2V5PnAyLXBhbmRhLXNlYXJjaDwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU2VhcmNoLndvYS93YS9zZWFyY2g/bWVkaWE9c29mdHdhcmU8L3N0cmluZz4KICAgICAgICA8a2V5PnAyLXBhbmRhLXNlYXJjaEhpbnRzPC9rZXk+PHN0cmluZz5odHRwOi8vYXgucGhvYm9zLmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0L1dlYk9iamVjdHMvTVpTZWFyY2hIaW50cy53b2Evd2EvaGludHM/bWVkaWE9c29mdHdhcmU8L3N0cmluZz4KICAgICAgICA8a2V5PmF2YWlsYWJsZS1zb2Z0d2FyZS11cGRhdGVzPC9rZXk+PHN0cmluZz5odHRwOi8vcGhvYm9zLmFwcGxlLmNvbS9XZWJPYmplY3RzL01aUGVyc29uYWxpemVyLndvYS93YS9hdmFpbGFibGVTb2Z0d2FyZVVwZGF0ZXM8L3N0cmluZz4KICAgICAgICA8a2V5PnAyLWNvbmNlcm4tbGlzdDwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS9wMkdldFJlcG9ydEFDb25jZXJuTGlzdDwvc3RyaW5nPgogICAgICAgIDxrZXk+cDItcmVwb3J0LWNvbmNlcm48L2tleT48c3RyaW5nPmh0dHBzOi8vcGhvYm9zLmFwcGxlLmNvbS9XZWJPYmplY3RzL01aRmluYW5jZS53b2Evd2EvcDJSZXBvcnRBUHJvYmxlbTwvc3RyaW5nPgogICAgCiAgICA8a2V5Pml4LWF2YWlsYWJsZS1zdG9yZWZyb250czwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL3N0b3JlRnJvbnRzPC9zdHJpbmc+CgogICAgCiAgICAgIDxrZXk+dmlldy1tb2JpbGUtc29mdHdhcmUtdXBkYXRlczwva2V5PjxzdHJpbmc+aHR0cDovL3Bob2Jvcy5hcHBsZS5jb20vV2ViT2JqZWN0cy9NWlBlcnNvbmFsaXplci53b2Evd2Evdmlld0FsbEF2YWlsYWJsZVNvZnR3YXJlVXBkYXRlczwvc3RyaW5nPgogICAgCgogICAgPGtleT5ub3ctcGxheWluZy11cmw8L2tleT48c3RyaW5nPmh0dHA6Ly9heC5waG9ib3MuYXBwbGUuY29tLmVkZ2VzdWl0ZS5uZXQvV2ViT2JqZWN0cy9NWlN0b3JlLndvYS93YS9ub3dQbGF5aW5nPC9zdHJpbmc+CiAgICA8a2V5Pm5vdy1wbGF5aW5nLW5ldHdvcmstZGV0ZWN0LXVybDwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL25vd1BsYXlpbmc8L3N0cmluZz4KICAgIDxrZXk+YWRhbWlkLWxvb2t1cC11cmw8L2tleT48c3RyaW5nPmh0dHA6Ly9heC5waG9ib3MuYXBwbGUuY29tLmVkZ2VzdWl0ZS5uZXQvV2ViT2JqZWN0cy9NWlN0b3JlLndvYS93YS9hZGFtSWRMb29rdXA8L3N0cmluZz4KCiAgICAKCiAgICA8a2V5PnJlbnRhbC1jaGVja2luPC9rZXk+PHN0cmluZz5odHRwczovL3Bob2Jvcy5hcHBsZS5jb20vV2ViT2JqZWN0cy9NWkZhc3RGaW5hbmNlLndvYS93YS9jaGVja2luUmVudGFsPC9zdHJpbmc+CiAgICA8a2V5PnJlbnRhbC1hY2stY2hlY2tpbjwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGYXN0RmluYW5jZS53b2Evd2EvY2hlY2tpbkFja1JlbnRhbDwvc3RyaW5nPgogICAgPGtleT5yZW50YWwtY2hlY2tvdXQ8L2tleT48c3RyaW5nPmh0dHBzOi8vcGhvYm9zLmFwcGxlLmNvbS9XZWJPYmplY3RzL01aRmFzdEZpbmFuY2Uud29hL3dhL2NoZWNrb3V0UmVudGFsPC9zdHJpbmc+CgogICAgCiAgICAgICAgPGtleT5yZW50YWwtcmVjb21tZW5kYXRpb25zPC9rZXk+PHN0cmluZz5odHRwOi8vcGhvYm9zLmFwcGxlLmNvbS9XZWJPYmplY3RzL01aUGVyc29uYWxpemVyLndvYS93YS9yZW50YWxSZWNvbW1lbmRhdGlvbnM8L3N0cmluZz4KICAgICAgICA8a2V5PnJlbnRhbC1tYWluPC9rZXk+PHN0cmluZz5odHRwOi8vYXgucGhvYm9zLmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0L1dlYk9iamVjdHMvTVpTdG9yZS53b2Evd2Evdmlld1JlbnRhbE1haW48L3N0cmluZz4KICAgIAoKICAgIDxrZXk+Z2V0LW5pa2l0YS1kcGluZm88L2tleT48c3RyaW5nPmh0dHBzOi8vcGhvYm9zLmFwcGxlLmNvbS9XZWJPYmplY3RzL01aRmluYW5jZS53b2Evd2EvaVBvZFRyYW5zZmVyPC9zdHJpbmc+CiAgICAKICAgIDxrZXk+dmlld1RWU2Vhc29uPC9rZXk+PHN0cmluZz5odHRwOi8vYXgucGhvYm9zLmFwcGxlLmNvbS5lZGdlc3VpdGUubmV0L1dlYk9iamVjdHMvTVpTdG9yZS53b2Evd2Evdmlld1RWU2Vhc29uPC9zdHJpbmc+CiAgICA8a2V5PnZpZXdUVlNob3c8L2tleT48c3RyaW5nPmh0dHA6Ly9heC5waG9ib3MuYXBwbGUuY29tLmVkZ2VzdWl0ZS5uZXQvV2ViT2JqZWN0cy9NWlN0b3JlLndvYS93YS92aWV3VFZTaG93PC9zdHJpbmc+CiAgICA8a2V5PnZpZXdNb3ZpZTwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL3ZpZXdNb3ZpZTwvc3RyaW5nPgogICAgPGtleT52aWV3R2FtZTwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL3ZpZXdHYW1lPC9zdHJpbmc+CiAgICA8a2V5PnZpZXdQcmVvcmRlcjwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL3ZpZXdQcmVvcmRlcjwvc3RyaW5nPgoKICAgIDxrZXk+bmlrZS1wbHVzLWxhbmRpbmctcGFnZTwva2V5PjxzdHJpbmc+aHR0cDovL2F4LnBob2Jvcy5hcHBsZS5jb20uZWRnZXN1aXRlLm5ldC9XZWJPYmplY3RzL01aU3RvcmUud29hL3dhL3ZpZXdDdXN0b21QYWdlP25hbWU9cGFnZU5pa2U8L3N0cmluZz4KCgoKCiAgICAgICAgPGtleT5hdXRoZW50aWNhdGVBY2NvdW50PC9rZXk+PHN0cmluZz5odHRwczovL3Bob2Jvcy5hcHBsZS5jb20vV2ViT2JqZWN0cy9NWkZpbmFuY2Uud29hL3dhL2F1dGhlbnRpY2F0ZTwvc3RyaW5nPgogICAgPGtleT5pUGhvbmVBY3RpdmF0aW9uPC9rZXk+PHN0cmluZz5odHRwczovL2FsYmVydC5hcHBsZS5jb20vV2ViT2JqZWN0cy9BTEFjdGl2YXRpb24ud29hL3dhL2lQaG9uZVJlZ2lzdHJhdGlvbjwvc3RyaW5nPgogICAgPGtleT5kZXZpY2UtYWN0aXZhdGlvbjwva2V5PjxzdHJpbmc+aHR0cHM6Ly9hbGJlcnQuYXBwbGUuY29tL1dlYk9iamVjdHMvQUxBY3RpdmF0aW9uLndvYS93YS9kZXZpY2VBY3RpdmF0aW9uPC9zdHJpbmc+CiAgICA8a2V5PmNhcnJpZXJEZXZpY2VJbmZvPC9rZXk+PHN0cmluZz5odHRwczovL2FsYmVydC5hcHBsZS5jb20vV2ViT2JqZWN0cy9BTEFjdGl2YXRpb24ud29hL3dhL2NhcnJpZXJEZXZpY2VJbmZvPC9zdHJpbmc+CiAgICA8a2V5PmF1dGhvcml6ZU1hY2hpbmU8L2tleT48c3RyaW5nPmh0dHBzOi8vcGhvYm9zLmFwcGxlLmNvbS9XZWJPYmplY3RzL01aRmluYW5jZS53b2Evd2EvYXV0aG9yaXplTWFjaGluZTwvc3RyaW5nPgogICAgPGtleT5idXlQcm9kdWN0PC9rZXk+PHN0cmluZz5odHRwczovL3Bob2Jvcy5hcHBsZS5jb20vV2ViT2JqZWN0cy9NWkZpbmFuY2Uud29hL3dhL2J1eVByb2R1Y3Q8L3N0cmluZz4KICAgIDxrZXk+YnV5Q2FydDwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS9idXlDYXJ0PC9zdHJpbmc+CiAgICA8a2V5PmRlYXV0aG9yaXplTWFjaGluZTwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS9kZWF1dGhvcml6ZU1hY2hpbmU8L3N0cmluZz4KICAgIDxrZXk+bWFjaGluZUF1dGhvcml6YXRpb25JbmZvPC9rZXk+PHN0cmluZz5odHRwczovL3Bob2Jvcy5hcHBsZS5jb20vV2ViT2JqZWN0cy9NWkZhc3RGaW5hbmNlLndvYS93YS9tYWNoaW5lQXV0aG9yaXphdGlvbkluZm88L3N0cmluZz4KICAgIDxrZXk+bW9kaWZ5QWNjb3VudDwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS9hY2NvdW50U3VtbWFyeTwvc3RyaW5nPgogICAgPGtleT5wZW5kaW5nU29uZ3M8L2tleT48c3RyaW5nPmh0dHBzOi8vcGhvYm9zLmFwcGxlLmNvbS9XZWJPYmplY3RzL01aRmluYW5jZS53b2Evd2EvcGVuZGluZ1NvbmdzPC9zdHJpbmc+CiAgICA8a2V5PnNpZ251cDwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS9zaWdudXBXaXphcmQ8L3N0cmluZz4KICAgIDxrZXk+c29uZ0Rvd25sb2FkRG9uZTwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGYXN0RmluYW5jZS53b2Evd2Evc29uZ0Rvd25sb2FkRG9uZTwvc3RyaW5nPgogICAgPGtleT5mb3Jnb3R0ZW5QYXNzd29yZDwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS9pRm9yZ290PC9zdHJpbmc+CiAgICA8a2V5Pm15SW5mbzwva2V5PjxzdHJpbmc+aHR0cHM6Ly9teWluZm8uYXBwbGUuY29tLzwvc3RyaW5nPgogICAgPGtleT5ub0FPTEFjY291bnRzPC9rZXk+PGZhbHNlLz4KICAgIDxrZXk+bG9nb3V0PC9rZXk+PHN0cmluZz5odHRwczovL3Bob2Jvcy5hcHBsZS5jb20vV2ViT2JqZWN0cy9NWkZpbmFuY2Uud29hL3dhL2xvZ291dDwvc3RyaW5nPgogICAgPGtleT5hZGRUb0NhcnQ8L2tleT48c3RyaW5nPmh0dHBzOi8vcGhvYm9zLmFwcGxlLmNvbS9XZWJPYmplY3RzL01aRmluYW5jZS53b2Evd2EvYWRkVG9DYXJ0PC9zdHJpbmc+CiAgICA8a2V5PnJlbW92ZUZyb21DYXJ0PC9rZXk+PHN0cmluZz5odHRwczovL3Bob2Jvcy5hcHBsZS5jb20vV2ViT2JqZWN0cy9NWkZpbmFuY2Uud29hL3dhL3JlbW92ZUZyb21DYXJ0PC9zdHJpbmc+CiAgICA8a2V5PnNob3BwaW5nQ2FydDwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS9zaG9wcGluZ0NhcnQ8L3N0cmluZz4KICAgIDxrZXk+YmNVUkxzPC9rZXk+PGFycmF5PjxzdHJpbmc+aHR0cDovLy5waG9ib3MuYXBwbGUuY29tPC9zdHJpbmc+PHN0cmluZz5odHRwOi8vd3d3LmF0ZG10LmNvbTwvc3RyaW5nPjwvYXJyYXk+CiAgICA8a2V5PnJlcG9ydFBvZGNhc3Q8L2tleT48c3RyaW5nPmh0dHBzOi8vcGhvYm9zLmFwcGxlLmNvbS9XZWJPYmplY3RzL01aRmluYW5jZS53b2Evd2EvcmVwb3J0UG9kY2FzdDwvc3RyaW5nPgogICAgPGtleT5jaGVjay1kb3dubG9hZC1xdWV1ZTwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS9jaGVja0Rvd25sb2FkUXVldWU8L3N0cmluZz4KICAgIDxrZXk+c2V0LWF1dG8tZG93bmxvYWQ8L2tleT48c3RyaW5nPmh0dHBzOi8vcGhvYm9zLmFwcGxlLmNvbS9XZWJPYmplY3RzL01aRmluYW5jZS53b2Evd2Evc2V0QXV0b0Rvd25sb2FkPC9zdHJpbmc+CiAgICA8a2V5Pm5ldy1pcG9kLXVzZXI8L2tleT48c3RyaW5nPmh0dHBzOi8vcGhvYm9zLmFwcGxlLmNvbS9XZWJPYmplY3RzL01aRmluYW5jZS53b2Evd2EvaVBvZFJlZ2lzdHJhdGlvbjwvc3RyaW5nPgogICAgPGtleT5uZXctdHYtdXNlcjwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS9pVFZSZWdpc3RyYXRpb248L3N0cmluZz4KICAgIDxrZXk+bWQ1LW1pc21hdGNoPC9rZXk+PHN0cmluZz5odHRwczovL3Bob2Jvcy5hcHBsZS5jb20vV2ViT2JqZWN0cy9NWkZpbmFuY2Uud29hL3dhL21kNU1pc21hdGNoPC9zdHJpbmc+CiAgICA8a2V5PnJlcG9ydC1lcnJvcjwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS9yZXBvcnRFcnJvckZyb21DbGllbnQ8L3N0cmluZz4KICAgIDxrZXk+dXBkYXRlQXNzZXQ8L2tleT48c3RyaW5nPmh0dHBzOi8vcGhvYm9zLmFwcGxlLmNvbS9XZWJPYmplY3RzL01aRmluYW5jZS53b2Evd2EvdXBkYXRlQXNzZXQ8L3N0cmluZz4KICAgIDxrZXk+Y3JlYXRlLXRva2VuPC9rZXk+PHN0cmluZz5odHRwczovL3Bob2Jvcy5hcHBsZS5jb20vV2ViT2JqZWN0cy9NWkZpbmFuY2Uud29hL3dhL2NyZWF0ZVRva2VuPC9zdHJpbmc+CiAgICA8a2V5PmNyZWF0ZS1zZXNzaW9uPC9rZXk+PHN0cmluZz5odHRwczovL3Bob2Jvcy5hcHBsZS5jb20vV2ViT2JqZWN0cy9NWkZpbmFuY2Uud29hL3dhL2NyZWF0ZVNlc3Npb248L3N0cmluZz4KICAgIAogICAgICAgIDxrZXk+ZGlnaXRhbC1jb3B5PC9rZXk+PHN0cmluZz5odHRwczovL3Bob2Jvcy5hcHBsZS5jb20vV2ViT2JqZWN0cy9NWkZpbmFuY2Uud29hL3dhL2RpZ2l0YWxDb3B5V2l6YXJkPC9zdHJpbmc+CiAgICAKICAgIDxrZXk+cDItcmVkZW1wdGlvbjwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS9wMlJlZGVlbUNvZGU8L3N0cmluZz4KICAgIDxrZXk+cDItcmVkZWVtLXNlcnZpY2UtdGVybXMtdXJsPC9rZXk+PHN0cmluZz5odHRwOi8vd3d3LmFwcGxlLmNvbS9sZWdhbC9pdHVuZXMvd3cvPC9zdHJpbmc+CiAgICAKICAgIDxrZXk+cGVuZGluZ0FwcHM8L2tleT48c3RyaW5nPmh0dHBzOi8vcGhvYm9zLmFwcGxlLmNvbS9XZWJPYmplY3RzL01aRmluYW5jZS53b2Evd2EvcGVuZGluZ0FwcHM8L3N0cmluZz4KICAgIDxrZXk+Y2hlY2tBcHBRdWV1ZTwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS9jaGVja0FwcERvd25sb2FkUXVldWU8L3N0cmluZz4KICAgIDxrZXk+bWFya2V0aW5nLWFjdGlvbjwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS92aWV3TWFya2V0aW5nUGFnZTwvc3RyaW5nPiAgICAgIAogICAgCgogICAgCiAgICA8a2V5PnVwbG9hZFB1Ymxpc2hlZFBsYXlsaXN0PC9rZXk+PHN0cmluZz5odHRwczovL3Bob2Jvcy5hcHBsZS5jb20vV2ViT2JqZWN0cy9NWkZpbmFuY2Uud29hL3dhL3VwbG9hZFB1Ymxpc2hlZFBsYXlMaXN0PC9zdHJpbmc+CiAgICA8a2V5PmdpZnRQbGF5bGlzdDwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS9naWZ0U29uZ3NXaXphcmQ8L3N0cmluZz4KICAgIDxrZXk+Z2l2ZS1wbGF5bGlzdDwva2V5PjxzdHJpbmc+aHR0cHM6Ly9waG9ib3MuYXBwbGUuY29tL1dlYk9iamVjdHMvTVpGaW5hbmNlLndvYS93YS9naWZ0U29uZ3NXaXphcmQ8L3N0cmluZz4KICAgIAogICAgICAgICAgICAgICAgICAgICAgICAKCiAgICAgIAogICAgICAKICAgIDwvZGljdD4KICA8L3BsaXN0PgoKCg==</data>
-		</dict>
-	</plist>'''
-
-	COVER_INFO_XML = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<Document xmlns="http://www.apple.com/itms/" disableHistory="true" disableNavigation="true">
-	<Protocol>
-		<plist version="1.0">
-			<dict>
-				<key>status</key><integer>0</integer>
-				<key>cover-art-url</key><string>http://localhost/serve?key=%s</string>
-				<key>request-delay-seconds</key><string>.1</string>
-				<key>artistName</key><string></string>
-				<key>playlistName</key><string></string>
-				<key>artistId</key><string></string>
-				<key>playlistId</key><string></string>
-				<key>matchType</key><string>2</string>
-			</dict>
-		</plist>
-	</Protocol>
-</Document>'''
-
-	NO_COVER_FOUND_XML = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<Document xmlns="http://www.apple.com/itms/" disableHistory="true" disableNavigation="true">
-	<Protocol>
-		<plist version="1.0">
-			<dict>
-				<key>status</key><integer>3004</integer>
-				<key>cover-art-url</key><string></string>
-				<key>request-delay-seconds</key><string>.1</string>
-			</dict>
-		</plist>
-	</Protocol>
-</Document>'''
+	def log_message(self, format, *args): pass
 
 	def do_GET(self):
-		urlParts = urlparse.urlparse(self.path)
-		location = urlParts[2]
-		query = cgi.parse_qs(urlParts[4])
-		self.handleRequest(location, query)
+		(scm, netloc, path, params, query, fragment) = urlparse.urlparse(
+			self.path, 'http')
 
-	def do_POST(self):
-		urlParts = urlparse.urlparse(self.path)
-		location = urlParts[2]
-		cl = int(self.headers['Content-Length'])
-		data = self.rfile.read(cl)
-		query = cgi.parse_qs(data)
-		self.handleRequest(location, query)
+		if self.command == "POST":
+			cl = int(self.headers['Content-Length'])
+			data = self.rfile.read(cl)
+			queryParts = cgi.parse_qs(data)
+		else:
+			queryParts = cgi.parse_qs(query)
 
-	def handleRequest(self, location, query):
 		# Display the frame set for our web site.
-		if location == '/':
+		if path == '/':
 			self.sendTemplate("frameset.tmpl")
 
 		# Display the album list for the left frame of our web site.
-		elif location == '/list':
-			tags = {"albums": albumDB.getAllRecords(), "urllib":urllib}
+		elif path == '/list':
+			tags = {"albums":albumDB.getAllRecords(), "urllib":urllib}
 			self.sendTemplate("list.tmpl", tags)
 
 		# Display the album details for the right frame of our web site,
 		# or save changes to the selected album.
-		elif location == '/view' or location == '/save':
+		elif path == '/view' or path == '/save':
 			tags = {"response":"", "selection":None, "covers":None, "key":None, "urllib":urllib}
-			if "key" not in query:
+			if "key" not in queryParts:
 				self.sendTemplate("album.tmpl", tags)
 				return
-			tags["key"] = query['key'][0]
+			tags["key"] = queryParts['key'][0]
 			tags["selection"] = albumDB.get(tags["key"])
 			if not tags["selection"]:
 				tags["response"] = "Album not found"
-			elif "searchTerms" not in query:
+			elif "searchTerms" not in queryParts:
 				aca = amazonCoverArt.AmazonCoverArt()
 				tags["covers"] = aca.search(artist=tags["selection"]["artist"], album=tags["selection"]["album"])
 				if len(tags["covers"]) == 0:
 					tags["response"] = "No covers found"
 
-			if location == '/save':
-				if "clear" in query:
-					albumDB.setField(tags["key"], "url", "")
+			if path == '/save':
+				if "clear" in queryParts:
+					albumDB.setField(tags["key"], "url", None)
 					tags["response"] = 'The cover art was cleared'
-				elif "searchTerms" in query:
+				elif "searchTerms" in queryParts:
 					aca = amazonCoverArt.AmazonCoverArt()
-					tags["covers"] = aca.search(keywords=query["searchTerms"][0])
+					tags["covers"] = aca.search(keywords=queryParts["searchTerms"][0])
 					if len(tags["covers"]) == 0:
 						tags["response"] = "No covers found"
-				elif "url" in query:
-					albumDB.setField(tags["key"], "url", query["url"][0])
+				elif "url" in queryParts:
+					albumDB.setField(tags["key"], "url", queryParts["url"][0])
 					albumDB.save()
 					tags["response"] = 'Your selection was saved'
 				else: tags["response"] = 'Unable to save'
@@ -114,39 +68,16 @@ class CoverArtServer(BaseHTTPServer.BaseHTTPRequestHandler):
 			self.sendTemplate("album.tmpl", tags)
 
 		# Send an individual album cover image to iTunes.
-		elif location == '/serve':
-			key = query['key'][0]
+		elif path == '/serve':
+			key = queryParts['key'][0]
 			record = albumDB.get(key)
-			if record and "url" in record:
+			if record and "url" in record and record["url"] != None:
 				self.sendCover(record["url"])
-			else: self.sendXML(self.NO_COVER_FOUND_XML)
-
-		# Called when iTunes asks for artwork for the first time
-		elif location == '/WebObjects/MZStore.woa/wa/initiateSession':
-			self.sendXML(self.INIT_SESSION_XML)
-
-		# This is called when we choose "Get Album Artwork" in iTunes.
-		# If we haven't selected a cover for this album, add it to our database.
-		# If we have, send a fake XML response to iTunes, to tell it where to get the cover.
-		# This response actually points back to our /serve URL.
-		elif location == '/WebObjects/MZSearch.woa/wa/coverArtMatch' or location == '/WebObjects/MZStoreServices.woa/wa/coverArtMatch':
-			key = md5.new(query['an'][0] + '/' + query['pn'][0]).hexdigest()
-			record = albumDB.get(key)
-			if record:
-				if "url" in record:
-					self.sendXML(self.COVER_INFO_XML % urllib.quote_plus(key))
-				else: self.sendXML(self.NO_COVER_FOUND_XML)
-			else:
-				albumDB.add(key, {"artist":query['an'][0], "album":query['pn'][0]})
-				self.sendXML(self.NO_COVER_FOUND_XML)
+			else: self.sendXML(CoverArtProxyHandler.NO_COVER_FOUND_XML)
 
 		else: self.send_error(404)
 
-	def sendXML(self, xmlStr):
-		self.send_response(200)
-		self.send_header('Content-type', 'text/xml; charset=UTF-8')
-		self.end_headers()
-		self.wfile.write(xmlStr.encode('utf-8'))
+	do_POST = do_GET
 
 	def sendTemplate(self, tmplFile, tags = {}):
 		f = open(tmplFile, 'r')
@@ -174,18 +105,220 @@ class CoverArtServer(BaseHTTPServer.BaseHTTPRequestHandler):
 		except:
 			print "Can't read image"
 			if f: f.close()
-		self.sendXML(self.NO_COVER_FOUND_XML)
+		self.sendXML(CoverArtProxyHandler.NO_COVER_FOUND_XML)
+
+	def sendXML(self, xmlStr):
+		self.send_response(200)
+		self.send_header('Content-type', 'text/xml; charset=UTF-8')
+		self.end_headers()
+		self.wfile.write(xmlStr.encode('utf-8'))
+
+
+class CoverArtProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+	""" Request handler for the Cover Art proxy. This acts as a normal web proxy
+	for all the system's HTTP requests. However, it intercepts the request that
+	iTunes makes for an album cover, and changes the response.
+	"""
+
+	SERVER_HOST = "localhost"
+	SERVER_PORT = 9988
+
+	rbufsize = 0			# self.rfile will be unbuffered
+
+	COVER_INFO_XML = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Document xmlns="http://www.apple.com/itms/" disableHistory="true" disableNavigation="true">
+	<Protocol>
+		<plist version="1.0">
+			<dict>
+				<key>status</key><integer>0</integer>
+				<key>cover-art-url</key><string>http://%s:%d/serve?key=%s</string>
+				<key>request-delay-seconds</key><string>.1</string>
+				<key>artistName</key><string></string>
+				<key>playlistName</key><string></string>
+				<key>artistId</key><string></string>
+				<key>playlistId</key><string></string>
+				<key>matchType</key><string>2</string>
+			</dict>
+		</plist>
+	</Protocol>
+</Document>'''
+
+	NO_COVER_FOUND_XML = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Document xmlns="http://www.apple.com/itms/" disableHistory="true" disableNavigation="true">
+	<Protocol>
+		<plist version="1.0">
+			<dict>
+				<key>status</key><integer>3004</integer>
+				<key>cover-art-url</key><string></string>
+				<key>request-delay-seconds</key><string>.1</string>
+			</dict>
+		</plist>
+	</Protocol>
+</Document>'''
+
+	def log_message(self, format, *args): pass
+
+	def _connect_to(self, netloc, soc):
+		i = netloc.find(':')
+		if i >= 0:
+			host_port = netloc[:i], int(netloc[i+1:])
+		else:
+			host_port = netloc, 80
+		try: soc.connect(host_port)
+		except socket.error, arg:
+			try: msg = arg[1]
+			except: msg = arg
+			self.send_error(404, msg)
+			return 0
+		return 1
+
+	def do_CONNECT(self):
+		soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		try:
+			if self._connect_to(self.path, soc):
+				self.log_request(200)
+				self.wfile.write(self.protocol_version +
+					" 200 Connection established\r\n")
+				self.wfile.write("Proxy-agent: %s\r\n" % self.version_string())
+				self.wfile.write("\r\n")
+				self._read_write(soc, 300)
+		finally:
+			soc.close()
+			self.connection.close()
+
+	def do_GET(self):
+		(scm, netloc, path, params, query, fragment) = urlparse.urlparse(
+			self.path, 'http')
+
+		if scm != 'http' or fragment or not netloc:
+			self.send_error(400, "bad url %s" % self.path)
+			return
+
+		if (netloc == "ax.phobos.apple.com.edgesuite.net" and
+				(path == '/WebObjects/MZSearch.woa/wa/coverArtMatch' or path == '/WebObjects/MZStoreServices.woa/wa/coverArtMatch')):
+			# This is called when we choose "Get Album Artwork" in iTunes.
+			queryParts = cgi.parse_qs(query)
+			if ("an" in queryParts and "pn" in queryParts):
+				key = md5.new(queryParts['an'][0] + '/' + queryParts['pn'][0]).hexdigest()
+				record = albumDB.get(key)
+				if record:
+					# If we have selected a cover for this album, send a fake XML response
+					# to iTunes, to tell it where to get the cover.
+					# This response actually points back to our web UI's /serve URL.
+					if "url" in record:
+						print "Sending iTunes cover for %s / %s" % (queryParts['an'][0], queryParts['pn'][0])
+						self.sendXML(self.COVER_INFO_XML % (CoverArtWebUIHandler.SERVER_HOST, CoverArtWebUIHandler.SERVER_PORT, urllib.quote_plus(key)))
+					else: self.sendXML(self.NO_COVER_FOUND_XML)
+					return
+				else:
+					# If we haven't selected a cover for this album, add it to our database.
+					print "iTunes asked for %s / %s" % (queryParts['an'][0], queryParts['pn'][0])
+					albumDB.add(key, {"artist":queryParts['an'][0], "album":queryParts['pn'][0]})
+					self.sendXML(self.NO_COVER_FOUND_XML)
+					return
+
+		# Otherwise, proxy the request to the real destination.
+		soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.proxyRequest(soc);
+
+	def proxyRequest(self, soc):
+		(scm, netloc, path, params, query, fragment) = urlparse.urlparse(
+			self.path, 'http')
+		try:
+			if self._connect_to(netloc, soc):
+				self.log_request()
+				soc.send("%s %s %s\r\n" % (
+					self.command,
+					urlparse.urlunparse(('', '', path, params, query, '')),
+					self.request_version))
+				self.headers['Connection'] = 'close'
+				del self.headers['Proxy-Connection']
+				for key_val in self.headers.items():
+					soc.send("%s: %s\r\n" % key_val)
+				soc.send("\r\n")
+				self._read_write(soc)
+		finally:
+			soc.close()
+			self.connection.close()
+
+	def _read_write(self, soc, max_idling=20):
+		iw = [self.connection, soc]
+		ow = []
+		count = 0
+		while 1:
+			count += 1
+			(ins, _, exs) = select.select(iw, ow, iw, 3)
+			if exs: break
+			if ins:
+				for i in ins:
+					if i is soc:
+						out = self.connection
+					else:
+						out = soc
+					data = i.recv(8192)
+					if data:
+						out.send(data)
+						count = 0
+			if count == max_idling: break
+
+	do_HEAD = do_GET
+	do_POST = do_GET
+	do_PUT  = do_GET
+	do_DELETE=do_GET
+
+	def sendXML(self, xmlStr):
+		self.send_response(200)
+		self.send_header('Content-type', 'text/xml; charset=UTF-8')
+		self.end_headers()
+		self.wfile.write(xmlStr.encode('utf-8'))
+
+
+class StoppableServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
+	"""Since this server may be run as a thread, we include a "stop" method,
+	to allow it to be stopped from outside the thread.
+	"""
+
+	def server_bind(self):
+		BaseHTTPServer.HTTPServer.server_bind(self)
+		self.socket.settimeout(1)
+		self.run = True
+
+	def get_request(self):
+		while self.run:
+			try:
+				sock, addr = self.socket.accept()
+				sock.settimeout(None)
+				return (sock, addr)
+			except socket.timeout:
+				if not self.run:
+					raise socket.error
+
+	def stop(self):
+		self.run = False
+
+	def serve(self):
+		while self.run:
+			self.handle_request()
+
 
 def main():
 	global albumDB
 	albumDB = albumDatabase.AlbumDatabase()
 	try:
-		server = BaseHTTPServer.HTTPServer(('', CoverArtServer.SERVER_PORT), CoverArtServer)
-		server.serve_forever()
+		webUIServer = StoppableServer((CoverArtWebUIHandler.SERVER_HOST, CoverArtWebUIHandler.SERVER_PORT), CoverArtWebUIHandler)
+		print "Starting web UI server at http://%s:%d." % (CoverArtWebUIHandler.SERVER_HOST, CoverArtWebUIHandler.SERVER_PORT)
+		threading.Thread(target=webUIServer.serve).start()
+
+		proxyServer = StoppableServer((CoverArtProxyHandler.SERVER_HOST, CoverArtProxyHandler.SERVER_PORT), CoverArtProxyHandler)
+		print "Starting proxy server at http://%s:%d." % (CoverArtProxyHandler.SERVER_HOST, CoverArtProxyHandler.SERVER_PORT)
+		print "Type control-C to stop."
+		proxyServer.serve()
 	except KeyboardInterrupt:
-		server.socket.close()
+		proxyServer.socket.close()
+		webUIServer.stop()
+		print "\nCoverArt stopped."
 	except:
-		print "Could not start server"
+		print "Could not start CoverArt servers: %s" % sys.exc_info()[0]
 	albumDB.save()
 
 if __name__ == '__main__':

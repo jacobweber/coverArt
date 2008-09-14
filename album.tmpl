@@ -30,8 +30,13 @@
 	<p><?= response ?></p>
 
 	<? if "url" in selection and selection["url"]: ?>
-		Selected cover:<br />
-		<img src="<?= selection["url"] ?>" class="selected" />
+		<? if selection["url"].startswith("http"): ?>
+			Selected cover:<br />
+			<img src="<?= selection["url"] ?>" class="selected" />
+		<? else: ?>
+			Selected cover:
+			<?= selection["url"] ?>
+		<? end ?>
 	<? end ?>
 
 	<form action="/save" method="post">
@@ -51,7 +56,7 @@
 		Search for a cover:
 		<input type="text" name="searchTerms" /><br />
 
-		Enter a URL or file path:
+		Enter a URL or file path (e.g. /Users/xyz/image.gif):
 		<input type="text" name="url" /><br />
 
 		<input type="submit" name="submit" value="Submit" /><br />

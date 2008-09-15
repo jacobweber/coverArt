@@ -3,9 +3,11 @@
 import threading, sys, BaseHTTPServer, select, socket, SocketServer, urllib, cgi, urlparse, pprint, albumDatabase, amazonCoverArt, stpy, md5
 
 albumDB = None
+albumDBLock = None
 
 class CoverArtWebUIHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 	""" Request handler for the Cover Art web interface """
+
 	SERVER_HOST = "localhost"
 	SERVER_PORT = 9999
 
@@ -51,6 +53,7 @@ class CoverArtWebUIHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 					tags["response"] = "No covers found"
 
 			if path == '/save':
+				albumDBLock.acquire()
 				if "clear" in queryParts:
 					albumDB.setField(tags["key"], "url", None)
 					tags["response"] = 'The cover art was cleared'
@@ -64,6 +67,7 @@ class CoverArtWebUIHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 					albumDB.save()
 					tags["response"] = 'Your selection was saved'
 				else: tags["response"] = 'Unable to save'
+				albumDBLock.release()
 
 			self.sendTemplate("album.tmpl", tags)
 
@@ -213,7 +217,9 @@ class CoverArtProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 				else:
 					# If we haven't selected a cover for this album, add it to our database.
 					print "iTunes asked for %s / %s" % (queryParts['an'][0], queryParts['pn'][0])
+					albumDBLock.acquire()
 					albumDB.add(key, {"artist":queryParts['an'][0], "album":queryParts['pn'][0]})
+					albumDBLock.release()
 					self.sendXML(self.NO_COVER_FOUND_XML)
 					return
 
@@ -273,7 +279,7 @@ class CoverArtProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 		self.wfile.write(xmlStr.encode('utf-8'))
 
 
-class StoppableServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
+class StoppableHTTPServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
 	"""Since this server may be run as a thread, we include a "stop" method,
 	to allow it to be stopped from outside the thread.
 	"""
@@ -302,14 +308,20 @@ class StoppableServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
 
 
 def main():
-	global albumDB
+	global albumDB, albumDBLock
 	albumDB = albumDatabase.AlbumDatabase()
+	albumDBLock = threading.Lock()
+
+	if len(sys.argv) > 1 and sys.argv[1] == "clear":
+		print "Clearing local database."
+		albumDB.deleteAllRecords()
+
 	try:
-		webUIServer = StoppableServer((CoverArtWebUIHandler.SERVER_HOST, CoverArtWebUIHandler.SERVER_PORT), CoverArtWebUIHandler)
+		webUIServer = StoppableHTTPServer((CoverArtWebUIHandler.SERVER_HOST, CoverArtWebUIHandler.SERVER_PORT), CoverArtWebUIHandler)
 		print "Starting web UI server at http://%s:%d." % (CoverArtWebUIHandler.SERVER_HOST, CoverArtWebUIHandler.SERVER_PORT)
 		threading.Thread(target=webUIServer.serve).start()
 
-		proxyServer = StoppableServer((CoverArtProxyHandler.SERVER_HOST, CoverArtProxyHandler.SERVER_PORT), CoverArtProxyHandler)
+		proxyServer = StoppableHTTPServer((CoverArtProxyHandler.SERVER_HOST, CoverArtProxyHandler.SERVER_PORT), CoverArtProxyHandler)
 		print "Starting proxy server at http://%s:%d." % (CoverArtProxyHandler.SERVER_HOST, CoverArtProxyHandler.SERVER_PORT)
 		print "Type control-C to stop."
 		proxyServer.serve()

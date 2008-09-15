@@ -12,7 +12,6 @@ class AlbumDatabase(object):
 
 	def deleteAllRecords(self):
 		self.data = {}
-		self.save()
 
 	def load(self):
 		if os.access(self.FILE_NAME, os.R_OK):

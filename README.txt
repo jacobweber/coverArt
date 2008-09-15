@@ -1,5 +1,5 @@
-Cover Art Server 1.3
---------------------
+Cover Art Server 1.3.1
+----------------------
 by Jacob Weber
 based on Tiny HTTP Proxy by Suzuki Hisao
 with contributions by Simon Long
@@ -18,7 +18,7 @@ In addition, Cover Art provides a web interface for you to select artwork, and t
 REQUIREMENTS
 ------------
 
-Works with iTunes 8.0, on Mac OS 10.5 or Windows XP. For Windows XP you'll need Cygwin installed. Also compatible with other operating systems, with some changes.
+Works with iTunes 8.0, on Mac OS 10.5 or Windows XP. Also compatible with other operating systems, with some changes.
 
 You must have Python installed to run this script. Version 2.5.1 is recommended, which comes with Mac OS 10.5. For other systems, you can download it from http://www.python.org/download/.
 
@@ -30,7 +30,11 @@ For users of versions of Cover Art prior to 1.3, this version is very different,
 
 To search for covers on Amazon, you'll need a free Amazon Web Services account. Go to http://www.amazon.com/gp/browse.html?node=3435361 and sign up there. When you get your Access Key ID, put it in the text file "amazonLicense.txt", in the same directory as these scripts.
 
-The first time you use this program, you'll need to set up your system to use Cover Art's HTTP proxy, at http://localhost:9988. On Mac OS X, duplicate your current location in the Network preferences pane, and call the new one "Cover Art". Select the new location's Ethernet tab. Under Advanced > Proxies, turn on Web Proxy, and set it to "localhost", port "9988". Apply the new settings.
+The first time you use this program, you'll need to set up your system to use Cover Art's HTTP proxy, at http://localhost:9988:
+
+On Mac OS X, duplicate your current location in the Network preferences pane, and call the new one "Cover Art". Select the new location's Ethernet tab. Under Advanced > Proxies, turn on Web Proxy, and set it to "localhost", port "9988". Apply the new settings.
+
+On Windows XP, go to Control Panels > Internet Options > Connections > LAN Settings, and check "Use a proxy server." Then click Advanced, and set the HTTP proxy to "localhost", port "9988".
 
 
 USAGE
@@ -38,9 +42,9 @@ USAGE
 
 Make sure you're using the Cover Art HTTP proxy. On Mac OS X, you can use the Apple menu's "Location" submenu to switch to the "Cover Art" location.
 
-If you have already run Cover Art, and you want to start from scratch, you can delete the file "albumDatabase.pkl".
-
 At the command-line, "cd" into the directory with these scripts. Type "python coverArtServer.py" to start the servers.
+
+If you have already run Cover Art, and you want to start from scratch, you can run "python coverArtServer.py clear" instead.
 
 In iTunes, select any albums that have incorrect artwork, control-click them, and choose "Clear Downloaded Artwork." Then control-click again and choose "Get Album Artwork". Or, to get artwork for all albums that don't have it, choose "Get Album Artwork" from the Advanced menu.
 

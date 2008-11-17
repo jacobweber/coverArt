@@ -198,8 +198,7 @@ class CoverArtProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 			self.send_error(400, "bad url %s" % self.path)
 			return
 
-		if (netloc == "ax.phobos.apple.com.edgesuite.net" and
-				(path == '/WebObjects/MZSearch.woa/wa/coverArtMatch' or path == '/WebObjects/MZStoreServices.woa/wa/coverArtMatch')):
+		if (path.find('coverArtMatch') != -1):
 			# This is called when we choose "Get Album Artwork" in iTunes.
 			queryParts = cgi.parse_qs(query)
 			if ("an" in queryParts and "pn" in queryParts):

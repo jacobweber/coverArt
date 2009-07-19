@@ -5,9 +5,10 @@ by Jacob Weber
 With code contributions from:
 Tiny HTTP Proxy (Suzuki Hisao)
 Simple Templates for Python (Armin Ronacher)
-Simon Long
-Mike Gill
 Boto project
+Simon Long
+Norman Gyhra
+Mike Gill
 
 
 WHAT'S NEW

@@ -1,6 +1,6 @@
 #!/Library/Frameworks/Python.framework/Versions/Current/bin/python
 
-import sys, os, urllib, string, xml.dom.minidom, traceback
+import sys, os, urllib, string, xml.dom.minidom, traceback, time, hashlib, base64, hmac
 
 class AmazonCoverArt(object):
 	""" Gets covers from Amazon's web service. The licence file must contain
@@ -8,28 +8,33 @@ class AmazonCoverArt(object):
 	"""
 
 	LICENSE_FILE = "amazonLicense.txt"
-	BASE_URLS = {
-		"US":"http://webservices.amazon.com/onca/xml?Service=AWSECommerceService",
-		"UK":"http://webservices.amazon.co.uk/onca/xml?Service=AWSECommerceService",
-		"DE":"http://webservices.amazon.de/onca/xml?Service=AWSECommerceService",
-		"JP":"http://webservices.amazon.co.jp/onca/xml?Service=AWSECommerceService",
-		"FR":"http://webservices.amazon.fr/onca/xml?Service=AWSECommerceService",
-		"CA":"http://webservices.amazon.ca/onca/xml?Service=AWSECommerceService"}
-	FULL_URL = string.Template(
-		"${baseURL}&AWSAccessKeyId=${accessKey}&Operation=${operation}&SearchIndex=${searchIndex}&"
-		+"Title=${title}&Artist=${artist}&Keywords=${keywords}&ResponseGroup=${responseGroup}")
+	HOST = "webservices.amazon.com"
+	PATH = "/onca/xml"
 
-	licenseKey = ""
+	license = ""
+	secret = ""
 
 	def __init__(self):
 		if os.access(self.LICENSE_FILE, os.R_OK):
 			f = open(self.LICENSE_FILE)
-			self.licenseKey = f.readline().strip()
+			self.license = f.readline().strip()
+			self.secret = f.readline().strip()
 			f.close()
+		if (self.license == "" or self.secret == ""):
+			print 'The file "amazonLicense.txt" must contain your license and secret key, separated by a return.'
 
 	def search(self, artist='', album='', keywords=''):
-		if self.licenseKey == "": return []
-		url = self.getURL(artist, album, keywords)
+		if (self.license == "" or self.secret == ""): return []
+		params = {
+			'Artist': artist,
+			'Keywords': keywords,
+			'Operation': 'ItemSearch',
+			'ResponseGroup': 'Images',
+			'SearchIndex': 'Music',
+			'Service': 'AWSECommerceService',
+			'Title': album
+		}
+		url = self.getSignedURL(params)
 		covers = []
 		c = None
 		try:
@@ -68,17 +73,23 @@ class AmazonCoverArt(object):
 		cover["h"] = imageNode.getElementsByTagName("Width")[0].childNodes[0].data
 		return cover
 
-	def getURL(self, artist, album, keywords):
-		d = {}
-		d['baseURL'] = self.BASE_URLS['US']
-		d['accessKey'] = self.licenseKey
-		d['operation'] = 'ItemSearch'
-		d['searchIndex'] = 'Music'
-		d['responseGroup'] = 'Images'
-		d['keywords'] = urllib.quote_plus(keywords)
-		d['artist'] = urllib.quote_plus(artist)
-		d['title'] = urllib.quote_plus(album)
-		return self.FULL_URL.substitute(d)
+	def getSignedURL(self, params):
+		params["AWSAccessKeyId"] = self.license
+		params['Timestamp'] = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
+		keys = params.keys()
+		keys.sort()
+		pairs = []
+		for key in keys:
+			val = params[key]
+			pairs.append(urllib.quote(key, safe='') + '=' + urllib.quote(val, safe='-_~'))
+		query = '&'.join(pairs)
+		hm = hmac.new(
+			self.secret,
+			"GET\n%s\n%s\n%s" % (self.HOST, self.PATH, query),
+			hashlib.sha256
+		)
+		signature = urllib.quote(base64.b64encode(hm.digest()))
+		return "http://%s%s?%s&Signature=%s" % (self.HOST, self.PATH, query, signature)
 
 def main():
 	aca = AmazonCoverArt()
@@ -88,4 +99,4 @@ def main():
 		print cover["url"]
 
 if __name__ == '__main__':
-    main()
+	main()

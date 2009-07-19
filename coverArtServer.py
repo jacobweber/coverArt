@@ -201,23 +201,31 @@ class CoverArtProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 		if (path.find('coverArtMatch') != -1):
 			# This is called when we choose "Get Album Artwork" in iTunes.
 			queryParts = cgi.parse_qs(query)
-			if ("an" in queryParts and "pn" in queryParts):
-				key = md5.new(queryParts['an'][0] + '/' + queryParts['pn'][0]).hexdigest()
+			if (("an" in queryParts and "pn" in queryParts) or ("a" in queryParts and "p" in queryParts)):
+				if ("an" in queryParts):
+					# Imported music
+					artist = queryParts['an'][0];
+					album = queryParts['pn'][0];
+				else:
+					# Music from iTunes Store
+					artist = queryParts['a'][0];
+					album = queryParts['p'][0];
+				key = md5.new(artist + '/' + album).hexdigest()
 				record = albumDB.get(key)
 				if record:
 					# If we have selected a cover for this album, send a fake XML response
 					# to iTunes, to tell it where to get the cover.
 					# This response actually points back to our web UI's /serve URL.
 					if "url" in record:
-						print "Sending iTunes cover for %s / %s" % (queryParts['an'][0], queryParts['pn'][0])
+						print "Sending iTunes cover for %s / %s" % (artist, album)
 						self.sendXML(self.COVER_INFO_XML % (CoverArtWebUIHandler.SERVER_HOST, CoverArtWebUIHandler.SERVER_PORT, urllib.quote_plus(key)))
 					else: self.sendXML(self.NO_COVER_FOUND_XML)
 					return
 				else:
 					# If we haven't selected a cover for this album, add it to our database.
-					print "iTunes asked for %s / %s" % (queryParts['an'][0], queryParts['pn'][0])
+					print "iTunes asked for %s / %s" % (artist, album)
 					albumDBLock.acquire()
-					albumDB.add(key, {"artist":queryParts['an'][0], "album":queryParts['pn'][0]})
+					albumDB.add(key, {"artist":artist, "album":album})
 					albumDBLock.release()
 					self.sendXML(self.NO_COVER_FOUND_XML)
 					return

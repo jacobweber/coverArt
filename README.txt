@@ -1,8 +1,26 @@
-Cover Art Server 1.3.1
-----------------------
+Cover Art Server 1.4
+--------------------
 by Jacob Weber
-based on Tiny HTTP Proxy by Suzuki Hisao
-with contributions by Simon Long
+
+With code contributions from:
+Tiny HTTP Proxy (Suzuki Hisao)
+Simple Templates for Python (Armin Ronacher)
+Simon Long
+Mike Gill
+Boto project
+
+
+WHAT'S NEW
+----------
+
+If you're upgrading from a previous version, please read these notes carefully, then follow the instructions under "Initial Setup".
+
+Version 1.4:
+* Updated to use Amazon's new request authentication. You must update your Amazon license file to include the Secret Access Key (see below).
+* Fixed requests for music purchased from the iTunes Music Store.
+
+Version 1.3:
+* Cover Art now runs a proxy server to intercept requests from iTunes. It is no longer necessary to turn off "Web Sharing". You should also remove any changes you made to your hosts file.
 
 
 DESCRIPTION
@@ -18,7 +36,7 @@ In addition, Cover Art provides a web interface for you to select artwork, and t
 REQUIREMENTS
 ------------
 
-Works with iTunes 8.0, on Mac OS 10.5 or Windows XP. Also compatible with other operating systems, with some changes.
+Works with iTunes 8.x, on Mac OS 10.5 or Windows XP. Also compatible with other operating systems, with some changes.
 
 You must have Python installed to run this script. Version 2.5.1 is recommended, which comes with Mac OS 10.5. For other systems, you can download it from http://www.python.org/download/.
 
@@ -26,15 +44,18 @@ You must have Python installed to run this script. Version 2.5.1 is recommended,
 INITIAL SETUP
 -------------
 
-For users of versions of Cover Art prior to 1.3, this version is very different, so please read carefully. it is no longer necessary to turn off "Web Sharing" or edit your hosts file.
-
-To search for covers on Amazon, you'll need a free Amazon Web Services account. Go to http://www.amazon.com/gp/browse.html?node=3435361 and sign up there. When you get your Access Key ID, put it in the text file "amazonLicense.txt", in the same directory as these scripts.
+To search for covers on Amazon, you'll need a free Amazon Web Services account:
+* Go to http://aws.amazon.com and sign up there.
+* Once you're logged in, go to "Your Account", then "Access Identifiers".
+* Copy your Access Key ID and your Secret Access Key.
+* In a text editor, open the file "amazonLicense.txt", in the same directory as these scripts.
+* Paste the Access Key ID into the file, followed by a return, then the Secret Access Key.
 
 The first time you use this program, you'll need to set up your system to use Cover Art's HTTP proxy, at http://localhost:9988:
 
 On Mac OS X, duplicate your current location in the Network preferences pane, and call the new one "Cover Art". Select the new location's Ethernet tab. Under Advanced > Proxies, turn on Web Proxy, and set it to "localhost", port "9988". Apply the new settings.
 
-On Windows XP, go to Control Panels > Internet Options > Connections > LAN Settings, and check "Use a proxy server." Then click Advanced, and set the HTTP proxy to "localhost", port "9988".
+On Windows XP, go to Control Panels > Internet Options > Connections > LAN Settings, and check "Use a proxy server". Then click Advanced, and set the HTTP proxy to "localhost", port "9988".
 
 
 USAGE
@@ -46,7 +67,7 @@ At the command-line, "cd" into the directory with these scripts. Type "python co
 
 If you have already run Cover Art, and you want to start from scratch, you can run "python coverArtServer.py clear" instead.
 
-In iTunes, select any albums that have incorrect artwork, control-click them, and choose "Clear Downloaded Artwork." Then control-click again and choose "Get Album Artwork". Or, to get artwork for all albums that don't have it, choose "Get Album Artwork" from the Advanced menu.
+In iTunes, select any albums that have incorrect artwork, control-click them, and choose "Clear Downloaded Artwork". Then control-click again and choose "Get Album Artwork". Or, to get artwork for all albums that don't have it, choose "Get Album Artwork" from the Advanced menu.
 
 The first time you do this, it won't actually get any artwork; it will just tell our program which albums need it. Go to http://localhost:9999 in your browser, to see a list of the albums needing artwork. When you click an album on the left side, we search Amazon for covers. If you don't find one, you can enter your own search terms and try again. Or if you know the URL of an image from another source, you can enter it. When you're done, go back to iTunes, select the same tracks, and choose "Get Album Artwork" again. This time, the images will be loaded into the iTunes database.
 

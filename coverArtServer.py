@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import threading, sys, BaseHTTPServer, select, socket, SocketServer, urllib, cgi, urlparse, pprint, albumDatabase, amazonCoverArt, stpy, md5
+import threading, sys, BaseHTTPServer, select, socket, SocketServer, urllib, cgi, urlparse, pprint, albumDatabase, amazonCoverArt, stpy, hashlib
 
 albumDB = None
 albumDBLock = None
@@ -210,7 +210,7 @@ class CoverArtProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 					# Music from iTunes Store
 					artist = queryParts['a'][0];
 					album = queryParts['p'][0];
-				key = md5.new(artist + '/' + album).hexdigest()
+				key = hashlib.md5(artist + '/' + album).hexdigest()
 				record = albumDB.get(key)
 				if record:
 					# If we have selected a cover for this album, send a fake XML response

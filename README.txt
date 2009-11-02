@@ -17,7 +17,7 @@ WHAT'S NEW
 If you're upgrading from a previous version, please read these notes carefully, then follow the instructions under "Initial Setup".
 
 Version 1.4.1:
-* Updated instructions for Snow Leopard.
+* Updated instructions for Snow Leopard. Minor bug fixes.
 
 Version 1.4:
 * Updated to use Amazon's new request authentication. You must update your Amazon license file to include the Secret Access Key (see below).

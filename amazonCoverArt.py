@@ -1,10 +1,10 @@
-#!/Library/Frameworks/Python.framework/Versions/Current/bin/python
+#!/usr/bin/python
 
 import sys, os, urllib, string, xml.dom.minidom, traceback, time, hashlib, base64, hmac
 
 class AmazonCoverArt(object):
-	""" Gets covers from Amazon's web service. The licence file must contain
-	an Access Key ID.
+	""" Gets covers from Amazon's web service. The license file must contain
+	an Access Key ID, followed by a carriage return, followed by a Secret Access Key.
 	"""
 
 	LICENSE_FILE = "amazonLicense.txt"
@@ -21,7 +21,7 @@ class AmazonCoverArt(object):
 			self.secret = f.readline().strip()
 			f.close()
 		if (self.license == "" or self.secret == ""):
-			print 'The file "amazonLicense.txt" must contain your license and secret key, separated by a return.'
+			print 'The file "amazonLicense.txt" must contain your access key ID and secret key, separated by a return.'
 
 	def search(self, artist='', album='', keywords=''):
 		if (self.license == "" or self.secret == ""): return []
@@ -43,6 +43,7 @@ class AmazonCoverArt(object):
 			covers = self.getCovers(xmlStr)
 			c.close()
 		except:
+			traceback.print_exc(file=sys.stdout)
 			if c: c.close()
 		return covers
 

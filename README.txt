@@ -1,5 +1,5 @@
-Cover Art Server 1.4
---------------------
+Cover Art Server 1.4.1
+----------------------
 by Jacob Weber
 
 With code contributions from:
@@ -15,6 +15,9 @@ WHAT'S NEW
 ----------
 
 If you're upgrading from a previous version, please read these notes carefully, then follow the instructions under "Initial Setup".
+
+Version 1.4.1:
+* Updated instructions for Snow Leopard.
 
 Version 1.4:
 * Updated to use Amazon's new request authentication. You must update your Amazon license file to include the Secret Access Key (see below).
@@ -37,15 +40,20 @@ In addition, Cover Art provides a web interface for you to select artwork, and t
 REQUIREMENTS
 ------------
 
-Works with iTunes 8.x, on Mac OS 10.5 or Windows XP. Also compatible with other operating systems, with some changes.
+Works with iTunes 8.x or greater, on Mac OS 10.5 or Windows XP. Also compatible with other operating systems, with some changes.
 
-You must have Python installed to run this script. Version 2.5.1 is recommended, which comes with Mac OS 10.5. For other systems, you can download it from http://www.python.org/download/.
+You must have Python installed to run this script, and version 2.5.1 or greater is recommended. For Mac OS 10.5, the built-in Python will work. Mac OS 10.6 users should install Python 2.6.4 (see below). For other operating systems, you can download it from http://www.python.org/download/.
 
 
 INITIAL SETUP
 -------------
 
-To search for covers on Amazon, you'll need a free Amazon Web Services account:
+If you're using Mac OS 10.6 (Snow Leopard), the built-in Python has some bugs that prevent Cover Art from working. You should download version 2.6.4 or later from http://python.org/download/. Then change the first line of coverArtServer.py to:
+#!/usr/local/bin/python
+
+Users of other operating systems may also need to change the first line of coverArtServer.py, to point to their Python binary.
+
+If you want the ability to search for covers on Amazon, you'll need a free Amazon Web Services account:
 * Go to http://aws.amazon.com and sign up there.
 * Once you're logged in, go to "Your Account", then "Access Identifiers".
 * Copy your Access Key ID and your Secret Access Key.

@@ -1,0 +1,22 @@
+<project name="coverArt" basedir="." default="build">
+	<target name="build">
+		<delete dir="build" />
+		<mkdir dir="build/coverArt" />
+		<copy todir="build/coverArt">
+			<fileset dir=".">
+				<include name="*.py" />
+				<include name="*.tmpl" />
+				<include name="README.txt" />
+			</fileset>
+		</copy>
+		<chmod perm="u+x" file="build/coverArt/coverArtServer.py" />
+		<echo file="build/coverArt/amazonLicense.txt" />
+		<exec executable="tar" dir="build">
+			<arg value="-c" />
+			<arg value="-v" />
+			<arg value="-fcoverArt.tar" />
+			<arg value="coverArt" />
+		</exec>
+		<delete dir="build/coverArt" />
+	</target>
+</project>

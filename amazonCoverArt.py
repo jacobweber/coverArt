@@ -5,6 +5,7 @@ import sys, os, urllib, string, xml.dom.minidom, traceback, time, hashlib, base6
 class AmazonCoverArt(object):
 	""" Gets covers from Amazon's web service. The license file must contain
 	an Access Key ID, followed by a carriage return, followed by a Secret Access Key.
+	Optionally, you can include another carriage return and an associate tag.
 	"""
 
 	LICENSE_FILE = "amazonLicense.txt"
@@ -13,15 +14,19 @@ class AmazonCoverArt(object):
 
 	license = ""
 	secret = ""
+	associate = ""
 
 	def __init__(self):
 		if os.access(self.LICENSE_FILE, os.R_OK):
 			f = open(self.LICENSE_FILE)
 			self.license = f.readline().strip()
 			self.secret = f.readline().strip()
+			self.associate = f.readline().strip()
 			f.close()
 		if (self.license == "" or self.secret == ""):
 			print 'The file "amazonLicense.txt" must contain your access key ID and secret key, separated by a return.'
+		if (self.associate == ""):
+			self.associate = "none"
 
 	def search(self, artist='', album='', keywords=''):
 		if (self.license == "" or self.secret == ""): return []
@@ -32,6 +37,7 @@ class AmazonCoverArt(object):
 			'ResponseGroup': 'Images',
 			'SearchIndex': 'Music',
 			'Service': 'AWSECommerceService',
+			'AssociateTag': self.associate,
 			'Title': album
 		}
 		url = self.getSignedURL(params)

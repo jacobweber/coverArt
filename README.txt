@@ -1,4 +1,4 @@
-Cover Art Server 1.4.1
+Cover Art Server 1.4.2
 ----------------------
 by Jacob Weber
 
@@ -15,6 +15,9 @@ WHAT'S NEW
 ----------
 
 If you're upgrading from a previous version, please read these notes carefully, then follow the instructions under "Initial Setup".
+
+Version 1.4.2:
+* Fixed Amazon compatibility (added associate tag). You can optionally add a third line to amazonLicense.txt, containing your associate tag.
 
 Version 1.4.1:
 * Updated instructions for Snow Leopard. Minor bug fixes.
@@ -59,6 +62,7 @@ If you want the ability to search for covers on Amazon, you'll need a free Amazo
 * Copy your Access Key ID and your Secret Access Key.
 * In a text editor, open the file "amazonLicense.txt", in the same directory as these scripts.
 * Paste the Access Key ID into the file, followed by a return, then the Secret Access Key.
+* If you have an associate tag, add another return, followed by the associate tag.
 
 The first time you use this program, you'll need to set up your system to use Cover Art's HTTP proxy, at http://localhost:9988:
 

@@ -56,9 +56,9 @@ If you're using Mac OS 10.6 (Snow Leopard), the built-in Python has some bugs th
 
 Users of other operating systems may also need to change the first line of coverArtServer.py, to point to their Python binary.
 
-If you want the ability to search for covers on Amazon, you'll need a free Amazon Web Services account:
-* Go to http://aws.amazon.com and sign up there.
-* Once you're logged in, go to "Your Account", then "Access Identifiers".
+If you want the ability to search for covers on Amazon, you'll need a free Amazon Product Advertising API account:
+* Go to https://affiliate-program.amazon.com/gp/advertising/api/detail/main.html and sign up there.
+* Once you're logged in, go to "Manage Your Account", then "Access Identifiers".
 * Copy your Access Key ID and your Secret Access Key.
 * In a text editor, open the file "amazonLicense.txt", in the same directory as these scripts.
 * Paste the Access Key ID into the file, followed by a return, then the Secret Access Key.

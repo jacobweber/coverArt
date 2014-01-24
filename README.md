@@ -11,13 +11,11 @@ Norman Gyhra
 Mike Gill
 
 
-NOTE
-----
+## Note
 Cover Art is no longer supported. In recent versions of iTunes, Apple started encrypting data in a way that I haven't been able to intercept.
 
 
-WHAT'S NEW
-----------
+## What's New
 
 If you're upgrading from a previous version, please read these notes carefully, then follow the instructions under "Initial Setup".
 
@@ -35,8 +33,7 @@ Version 1.3:
 * Cover Art now runs a proxy server to intercept requests from iTunes. It is no longer necessary to turn off "Web Sharing". You should also remove any changes you made to your hosts file.
 
 
-DESCRIPTION
------------
+## Description
 
 Cover Art allows you to load album covers into iTunes, without attaching them to individual song files. Instead, they are loaded into iTunes' database, so they're only stored once for each album.
 
@@ -45,24 +42,24 @@ Cover Art Server acts as an HTTP proxy. You can leave it running in the backgrou
 In addition, Cover Art provides a web interface for you to select artwork, and to search Amazon for album covers.
 
 
-REQUIREMENTS
-------------
+## Requirements
 
 Works with iTunes 8.x or greater, on Mac OS 10.5 or Windows XP. Also compatible with other operating systems, with some changes.
 
-You must have Python installed to run this script, and version 2.5.1 or greater is recommended. For Mac OS 10.5, the built-in Python will work. Mac OS 10.6 users should install Python 2.6.4 (see below). For other operating systems, you can download it from http://www.python.org/download/.
+You must have Python installed to run this script, and version 2.5.1 or greater is recommended. For Mac OS 10.5, the built-in Python will work. Mac OS 10.6 users should install Python 2.6.4 (see below). For other operating systems, you can download it [here](from http://www.python.org/download/).
 
 
-INITIAL SETUP
--------------
+# Initial Setup
 
-If you're using Mac OS 10.6 (Snow Leopard), the built-in Python has some bugs that prevent Cover Art from working. You should download version 2.6.4 or later from http://python.org/download/. Then change the first line of coverArtServer.py to:
+If you're using Mac OS 10.6 (Snow Leopard), the built-in Python has some bugs that prevent Cover Art from working. You should download version 2.6.4 or later from [here](http://python.org/download/). Then change the first line of coverArtServer.py to:
+```
 #!/usr/local/bin/python
+```
 
 Users of other operating systems may also need to change the first line of coverArtServer.py, to point to their Python binary.
 
 If you want the ability to search for covers on Amazon, you'll need a free Amazon Product Advertising API account:
-* Go to https://affiliate-program.amazon.com/gp/advertising/api/detail/main.html and sign up there.
+* Go to [this page](https://affiliate-program.amazon.com/gp/advertising/api/detail/main.html) and sign up there.
 * Once you're logged in, go to "Manage Your Account", then "Access Identifiers".
 * Copy your Access Key ID and your Secret Access Key.
 * In a text editor, open the file "amazonLicense.txt", in the same directory as these scripts.
@@ -76,14 +73,13 @@ On Mac OS X, duplicate your current location in the Network preferences pane, an
 On Windows XP, go to Control Panels > Internet Options > Connections > LAN Settings, and check "Use a proxy server". Then click Advanced, and set the HTTP proxy to "localhost", port "9988".
 
 
-USAGE
------
+# Usage
 
 Make sure you're using the Cover Art HTTP proxy. On Mac OS X, you can use the Apple menu's "Location" submenu to switch to the "Cover Art" location.
 
-At the command-line, "cd" into the directory with these scripts. Type "python coverArtServer.py" to start the servers.
+At the command-line, `cd` into the directory with these scripts. Type `python coverArtServer.py` to start the servers.
 
-If you have already run Cover Art, and you want to start from scratch, you can run "python coverArtServer.py clear" instead.
+If you have already run Cover Art, and you want to start from scratch, you can run `python coverArtServer.py clear` instead.
 
 In iTunes, select any albums that have incorrect artwork, control-click them, and choose "Clear Downloaded Artwork". Then control-click again and choose "Get Album Artwork". Or, to get artwork for all albums that don't have it, choose "Get Album Artwork" from the Advanced menu.
 

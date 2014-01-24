@@ -11,6 +11,11 @@ Norman Gyhra
 Mike Gill
 
 
+NOTE
+----
+Cover Art is no longer supported. In recent versions of iTunes, Apple started encrypting data in a way that I haven't been able to intercept.
+
+
 WHAT'S NEW
 ----------
 

@@ -3,12 +3,12 @@ Cover Art Server 1.4.2
 by Jacob Weber
 
 With code contributions from:
-Tiny HTTP Proxy (Suzuki Hisao)
-Simple Templates for Python (Armin Ronacher)
-Boto project
-Simon Long
-Norman Gyhra
-Mike Gill
+* Tiny HTTP Proxy (Suzuki Hisao)
+* Simple Templates for Python (Armin Ronacher)
+* Boto project
+* Simon Long
+* Norman Gyhra
+* Mike Gill
 
 
 ## Note
@@ -46,7 +46,7 @@ In addition, Cover Art provides a web interface for you to select artwork, and t
 
 Works with iTunes 8.x or greater, on Mac OS 10.5 or Windows XP. Also compatible with other operating systems, with some changes.
 
-You must have Python installed to run this script, and version 2.5.1 or greater is recommended. For Mac OS 10.5, the built-in Python will work. Mac OS 10.6 users should install Python 2.6.4 (see below). For other operating systems, you can download it [here](from http://www.python.org/download/).
+You must have Python installed to run this script, and version 2.5.1 or greater is recommended. For Mac OS 10.5, the built-in Python will work. Mac OS 10.6 users should install Python 2.6.4 (see below). For other operating systems, you can download it from [here](http://www.python.org/download/).
 
 
 # Initial Setup
@@ -59,7 +59,7 @@ If you're using Mac OS 10.6 (Snow Leopard), the built-in Python has some bugs th
 Users of other operating systems may also need to change the first line of coverArtServer.py, to point to their Python binary.
 
 If you want the ability to search for covers on Amazon, you'll need a free Amazon Product Advertising API account:
-* Go to [this page](https://affiliate-program.amazon.com/gp/advertising/api/detail/main.html) and sign up there.
+* Go to [this page](https://affiliate-program.amazon.com/gp/advertising/api/detail/main.html) and sign up.
 * Once you're logged in, go to "Manage Your Account", then "Access Identifiers".
 * Copy your Access Key ID and your Secret Access Key.
 * In a text editor, open the file "amazonLicense.txt", in the same directory as these scripts.
